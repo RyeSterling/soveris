@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Soveris</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cexixseswrjpxcudqyto.supabase.co; connect-src 'self' https://cexixseswrjpxcudqyto.supabase.co wss://cexixseswrjpxcudqyto.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <style>
 :root{--c:#1d1e22;--s:#94a3b8;--m:#5ef0b8;--sf:rgba(148,163,184,.07);--sf2:rgba(148,163,184,.13);--ln:rgba(148,163,184,.16);--t:#f1f5f9}
 *{box-sizing:border-box}
@@ -129,6 +131,37 @@ body.light .switch{background:rgba(15,23,42,.1)}
 
 .bdg{margin-left:auto;background:#ef4444;color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;flex-shrink:0}
 .bdg.hide{display:none}
+
+/* ===== v2 comfort + auth ===== */
+body{font-size:15px;line-height:1.55}
+#app{grid-template-columns:272px 1fr}
+.side{padding:28px 18px}.nav{padding:12px 14px;font-size:14.5px;margin-bottom:4px}
+.main{padding:0;max-width:1320px;width:100%;margin:0 auto}
+#main{padding:8px 40px 60px}
+.gsearch{position:sticky;top:0;z-index:20;padding:18px 40px 12px;background:linear-gradient(var(--c) 72%,transparent)}
+.gsearch .in{height:48px;padding-left:44px;border-radius:14px;background:var(--sf)}
+.gico{position:absolute;left:56px;top:31px;color:var(--s);font-size:19px;pointer-events:none}
+.gres{position:absolute;left:40px;right:40px;top:70px;background:var(--c);border:1px solid var(--ln);border-radius:14px;padding:6px 18px;max-height:60vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.gres:empty{display:none}
+.top{background:linear-gradient(135deg,rgba(94,240,184,.13),var(--sf) 65%);border:1px solid var(--ln);border-radius:20px;padding:28px 30px;margin-bottom:28px;align-items:center}
+.top h1{font-size:29px;letter-spacing:-.02em}
+.grid{gap:22px}.gap{margin-top:22px}
+.card{padding:26px;box-shadow:0 12px 32px -20px rgba(0,0,0,.55);transition:border-color .2s,transform .2s}
+.stat{padding:24px}.val{font-size:29px}.sec{margin-bottom:18px}
+.row{padding:15px 0}.row:last-child{border-bottom:0}
+.empty{border:1px dashed var(--ln);border-radius:14px;padding:30px 16px;margin:6px 0}
+.in:focus{box-shadow:0 0 0 3px rgba(94,240,184,.18)}
+.btn:focus-visible,.nav:focus-visible,.eye:focus-visible{outline:2px solid var(--m);outline-offset:2px}
+.center{overflow-y:auto}
+.auth{max-width:460px;padding:36px;box-shadow:0 30px 80px -30px rgba(0,0,0,.65)}
+.pwb{position:relative}.pwb .in{padding-right:48px}
+.eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--s);cursor:pointer;padding:8px;display:flex;border-radius:8px}
+.eye:hover{color:var(--t)}.eye .sl{display:none}.eye.on .sl{display:block}
+.gbtn{width:100%;margin-top:20px;display:flex;gap:10px;justify-content:center;align-items:center}
+.or{display:flex;align-items:center;gap:12px;color:var(--s);font-size:12px;margin-top:18px}.or::before,.or::after{content:"";flex:1;height:1px;background:var(--ln)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chk{display:flex!important;gap:10px;align-items:flex-start;font-weight:400!important;line-height:1.4}.chk input{width:auto;margin-top:2px}
+@media (max-width:900px){#app{grid-template-columns:1fr}#main{padding:8px 18px 44px}.gsearch{padding:14px 18px 8px}.gico{left:32px;top:27px}.gres{left:18px;right:18px;top:62px}.two{grid-template-columns:1fr}.top{padding:22px}}
 </style>
 </head>
 <body>
@@ -137,15 +170,20 @@ body.light .switch{background:rgba(15,23,42,.1)}
 <div id="login" class="center">
   <div class="auth">
     <div class="brand"><div class="logo">S</div>Soveris</div>
-    <div class="seg">
-      <button id="tLogin" class="on" onclick="setMode('login')">Log in</button>
-      <button id="tSign" onclick="setMode('signup')">Sign up</button>
+    <div class="seg"><button id="tLogin" class="on" onclick="setMode('login')">Log in</button><button id="tSign" onclick="setMode('signup')">Sign up</button></div>
+    <button class="btn ghost gbtn" onclick="googleLogin()"><b style="color:#4285f4">G</b> Continue with Google</button>
+    <div class="or">or use your Gmail and password</div>
+    <div id="nameW" class="hidden"><label>Full name</label><input class="in" id="name" placeholder="Your name" autocomplete="name"></div>
+    <label>Gmail address</label>
+    <input class="in" id="email" type="email" placeholder="you@gmail.com" autocomplete="username">
+    <label>Password</label><div class="pwb"><input class="in" id="pass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')auth()"><button type="button" class="eye" onclick="togglePw('pass',this)" aria-label="Show password"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><path class="sl" d="M3 3l18 18"/></svg></button></div>
+    <div id="signW" class="hidden">
+      <label>Confirm password</label><div class="pwb"><input class="in" id="pass2" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')auth()"><button type="button" class="eye" onclick="togglePw('pass2',this)" aria-label="Show password"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><path class="sl" d="M3 3l18 18"/></svg></button></div>
+      <div class="two"><div><label>Birthday</label><input class="in" id="s_birthday" type="date"></div><div><label>Phone number</label><input class="in" id="s_phone" type="tel" placeholder="+63 9XX XXX XXXX"></div></div>
+      <label>Home address</label><input class="in" id="s_address" autocomplete="street-address">
+      <div class="two"><div><label>Religion</label><input class="in" id="s_religion"></div><div><label>Emergency contact</label><input class="in" id="s_emergency_contact" placeholder="Name and number"></div></div>
+      <label class="chk"><input type="checkbox" id="agree"> I agree that Soveris may store these details for membership records. Only I and the admins can see them.</label>
     </div>
-    <div id="nameW" class="hidden"><label>Full name</label><input class="in" id="name" placeholder="Your name"></div>
-    <label>Email</label>
-    <input class="in" id="email" type="email" autocomplete="username">
-    <label>Password</label>
-    <input class="in" id="pass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')auth()">
     <button id="authBtn" class="btn" style="width:100%;margin-top:20px" onclick="auth()">Log in</button>
     <div id="err" class="err"></div>
   </div>
@@ -162,7 +200,7 @@ body.light .switch{background:rgba(15,23,42,.1)}
       <button class="btn ghost" onclick="logout()">⎋ &nbsp;Log out</button>
     </div>
   </aside>
-  <main class="main" id="main"></main>
+  <main class="main"><div class="gsearch"><span class="gico">⌕</span><input class="in" id="gq" placeholder="Search missions, library, courses, forum and members…" oninput="doSearch(this.value)" autocomplete="off"><div id="dsr" class="gres"></div></div><div id="main"></div></main>
 </div>
 
 <div id="modal" class="modal hidden" onclick="if(event.target===this)closeModal()">
@@ -172,7 +210,7 @@ body.light .switch{background:rgba(15,23,42,.1)}
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
 <script>
 const SB_URL = "https://cexixseswrjpxcudqyto.supabase.co";
 const SB_KEY = "sb_publishable_glDCK71e5rXJMEtRH70J8Q_K8_ztQfP";
@@ -180,7 +218,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 
 let me = null, isAdmin = false, cur = "dashboard", mode = "login", MS = [], LIB_F = "All", openTopic = null;
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = s => String(s ?? "").replace(/[&<>"'`]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;","`":"&#96;"}[c]));
 const fmt = d => d ? new Date(d.length === 10 ? d + "T00:00" : d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—";
 const initials = n => (n || "?").split(" ").map(x => x[0]).join("").slice(0,2);
 const stat = (i,l,v) => `<div class="card stat"><div class="dot">${i}</div><div><div class="lbl">${l}</div><div class="val">${v}</div></div></div>`;
@@ -232,33 +270,89 @@ async function delRow(table, id){
 }
 
 // ---------- Sign in, sign up, session ----------
+const GMAIL = /^[a-z0-9][a-z0-9._+-]*@gmail\.com$/i;
+let fails = 0, lockUntil = 0;
+const INFO = ["birthday","phone","address","religion","emergency_contact"];
 function setMode(m){
   mode = m;
   $("tLogin").classList.toggle("on", m==="login");
   $("tSign").classList.toggle("on", m==="signup");
   $("nameW").classList.toggle("hidden", m==="login");
+  $("signW").classList.toggle("hidden", m==="login");
   $("authBtn").textContent = m==="login" ? "Log in" : "Create account";
+  $("pass").autocomplete = m==="login" ? "current-password" : "new-password";
   $("err").textContent = "";
 }
+function togglePw(id, b){
+  const i = $(id), show = i.type === "password";
+  i.type = show ? "text" : "password";
+  b.classList.toggle("on", show);
+  b.setAttribute("aria-label", show ? "Hide password" : "Show password");
+}
+const pwProblem = p => p.length < 10 ? "Use at least 10 characters." : (!/[a-z]/.test(p) || !/[A-Z]/.test(p) || !/\d/.test(p)) ? "Mix upper-case, lower-case and a number." : "";
+async function googleLogin(){
+  const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
+  if(error) $("err").textContent = error.message;
+}
 async function auth(){
-  const email = $("email").value.trim(), password = $("pass").value;
-  if(!email || !password){ $("err").textContent = "Enter your email and password."; return; }
-  $("err").textContent = "";
+  const err = m => { $("err").textContent = m; };
+  if(Date.now() < lockUntil) return err("Too many attempts. Try again in " + Math.ceil((lockUntil - Date.now())/1000) + "s.");
+  const email = $("email").value.trim().toLowerCase(), password = $("pass").value;
+  if(!GMAIL.test(email)) return err("Please use your real Gmail address (name@gmail.com).");
+  if(!password) return err("Enter your password.");
+  err("");
   if(mode === "login"){
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){ $("err").textContent = error.message; return; }
-    return boot();
+    if(error){
+      if(++fails >= 5){ lockUntil = Date.now() + 60000; fails = 0; }
+      return err(/confirm/i.test(error.message) ? "Please confirm your email first. Check your Gmail inbox." : "Incorrect email or password.");
+    }
+    fails = 0; return boot();
   }
-  const name = $("name").value.trim() || email.split("@")[0];
-  const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name } } });
-  if(error){ $("err").textContent = error.message; return; }
-  if(!data.session){ $("err").textContent = "Account created. Check your email to confirm it, then log in."; return; }
+  const name = $("name").value.trim(), info = {};
+  INFO.forEach(k => info[k] = $("s_" + k).value.trim());
+  if(!name) return err("Enter your full name.");
+  const pp = pwProblem(password); if(pp) return err(pp);
+  if(password !== $("pass2").value) return err("Passwords do not match.");
+  if(!info.birthday || new Date(info.birthday) >= new Date()) return err("Enter a valid birthday.");
+  if(info.phone.replace(/\D/g,"").length < 7) return err("Enter a valid phone number.");
+  if(info.address.length < 5) return err("Enter your address.");
+  if(!$("agree").checked) return err("Please tick the agreement box.");
+  const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name, info }, emailRedirectTo: location.origin + location.pathname } });
+  if(error) return err(error.message);
+  if(!data.session) return err("Almost done! Open your Gmail inbox and confirm your account, then log in.");
   boot();
+}
+const PRIV = [["birthday","Birthday","date"],["phone","Phone number","tel"],["address","Home address","text"],["religion","Religion","text"],["emergency_contact","Emergency contact (name and number)","text"]];
+async function syncInfo(u){
+  const { data, error } = await sb.from("member_private").select("id").eq("id", u.id).maybeSingle();
+  if(error || data) return;
+  const i = u.user_metadata?.info;
+  if(i && i.birthday && !(await sb.from("member_private").upsert({ id: u.id, ...i })).error) return;
+  setTimeout(() => editPrivate(true), 500);
+}
+async function editPrivate(first){
+  const { data } = await sb.from("member_private").select("*").eq("id", me.id).maybeSingle(), d = data || {};
+  openModal(first ? "Complete your member details" : "My details",
+    '<p class="muted">Only you and the admins can see these.</p>' +
+    PRIV.map(([k,l,t]) => `<label>${l}</label><input class="in" id="pv_${k}" type="${t}" value="${esc(d[k] || "")}">`).join("") +
+    `<div class="row end" style="border:0;margin-top:18px"><button class="btn ghost sm" onclick="closeModal()">Later</button><button class="btn sm" onclick="savePrivate()">Save</button></div>`);
+}
+async function savePrivate(){
+  const row = { id: me.id }; PRIV.forEach(([k]) => row[k] = $("pv_" + k).value.trim());
+  if(!row.birthday || !row.phone || !row.address) return alert("Birthday, phone and address are required.");
+  if(await run(sb.from("member_private").upsert(row))) closeModal();
+}
+async function viewDetails(id){
+  if(!isAdmin) return;
+  const [{ data: p }, { data: d }] = await Promise.all([sb.from("profiles").select("name").eq("id", id).single(), sb.from("member_private").select("*").eq("id", id).maybeSingle()]);
+  openModal(p?.name || "Member", d ? PRIV.map(([k,l]) => `<div class="row"><span class="muted">${l}</span><b style="text-align:right">${esc(d[k] || "—")}</b></div>`).join("") : '<div class="empty">This member has not filled in their details yet.</div>');
 }
 async function logout(){ await sb.auth.signOut(); location.reload(); }
 async function boot(){
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
+  if(!GMAIL.test(session.user.email || "")){ await sb.auth.signOut(); $("err").textContent = "Only Gmail accounts can use Soveris."; return; }
   const { data, error } = await sb.from("profiles").select("*").eq("id", session.user.id).single();
   if(error || !data){ $("err").textContent = "Could not load your profile: " + (error?.message || "not found"); return; }
   me = data;
@@ -268,6 +362,7 @@ async function boot(){
   buildNav();
   refreshMe();
   go("dashboard");
+  syncInfo(session.user);
 }
 
 // ---------- Navigation ----------
@@ -780,7 +875,15 @@ async function updateBadges(){
 // ---------- Files: upload, download, links ----------
 let LIB = [], COURSES = [], pendingPhoto = null;
 const okLink = s => /^https?:\/\//.test(s);
+function safeFile(f, kind){
+  const max = kind === "img" ? 2e6 : 15e6;
+  if(f.size > max){ alert("File too large (max " + max/1e6 + " MB)."); return false; }
+  if(kind === "img" && !/^image\/(png|jpe?g|webp|gif)$/.test(f.type)){ alert("Please choose a PNG, JPG, WEBP or GIF image."); return false; }
+  if(/\.(exe|bat|cmd|sh|js|html?|svg|php|msi|scr|jar)$/i.test(f.name)){ alert("This file type is not allowed."); return false; }
+  return true;
+}
 async function uploadFile(file){
+  if(!safeFile(file,"doc")) return null;
   const path = `${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
   const { error } = await sb.storage.from("library").upload(path, file);
   if(error){ alert(error.message); return null; }
@@ -946,12 +1049,12 @@ async function membersView(){
   return `
   <div class="top"><div><h1>Members</h1><p>Set each member's position and role. Only you can change these.</p></div></div>
   <div class="card" style="overflow-x:auto"><table>
-    <thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Role</th></tr></thead>
+    <thead><tr><th>Name</th><th>Email</th><th>Position</th><th>Role</th><th></th></tr></thead>
     <tbody>${(ps || []).map(p => `<tr>
       <td><b>${esc(p.name)}</b></td><td class="muted">${esc(emails[p.id] || "")}</td>
       <td><input class="in sm" value="${esc(p.position || "")}" onchange="setPosition('${p.id}',this.value)"></td>
       <td><select class="in sm" onchange="setRole('${p.id}',this.value)">
-        ${["member","officer","admin"].map(r => `<option value="${r}" ${p.role === r ? "selected" : ""}>${r}</option>`).join("")}</select></td></tr>`).join("")}
+        ${["member","officer","admin"].map(r => `<option value="${r}" ${p.role === r ? "selected" : ""}>${r}</option>`).join("")}</select></td><td><button class="btn ghost sm" onclick="viewDetails('${p.id}')">Details</button></td></tr>`).join("")}
     </tbody></table></div>`;
 }
 async function setPosition(id, position){
@@ -960,7 +1063,8 @@ async function setPosition(id, position){
 
 // ---------- Profile (opened by clicking your name at the top-left) ----------
 async function uploadAvatar(file){
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  if(!safeFile(file,"img")) return null;
+  const ext = {"image/png":"png","image/webp":"webp","image/gif":"gif"}[file.type] || "jpg";
   const path = `${me.id}/avatar.${ext}`;
   const { error } = await sb.storage.from("avatars").upload(path, file, {upsert: true, contentType: file.type});
   if(error){ alert(error.message); return null; }
@@ -1002,7 +1106,7 @@ async function profileView(){
   const hrs = lg.reduce((s,l) => l.clock_out ? s + (new Date(l.clock_out) - new Date(l.clock_in))/36e5 : s, 0);
   return `
   <div class="top"><div><h1>My Profile</h1><p>Your details, missions and time log.</p></div>
-    <button class="btn ghost sm" onclick="editProfile()">Edit profile</button></div>
+    <span style="display:flex;gap:8px"><button class="btn ghost sm" onclick="editPrivate()">My details</button><button class="btn ghost sm" onclick="editProfile()">Edit profile</button></span></div>
   <div class="grid g3">
     <div class="card">
       <div class="row" style="border:0;padding:0;justify-content:flex-start;gap:16px">${av(me, 64)}
@@ -1046,11 +1150,7 @@ function buildNav(){
 }
 
 // ---------- Search ----------
-const searchBox = () => `
-  <div class="card" style="margin-bottom:18px">
-    <input class="in" id="gq" placeholder="Search missions, library, courses and forum..." oninput="doSearch(this.value)">
-    <div id="dsr" style="margin-top:12px"></div>
-  </div>`;
+const searchBox = () => "";
 let searchT = null;
 function doSearch(q){
   clearTimeout(searchT);
@@ -1059,18 +1159,19 @@ function doSearch(q){
     const box = $("dsr"); if(!box) return;
     if(q.length < 2){ box.innerHTML = ""; return; }
     const like = `%${q}%`;
-    const [m, l, c, f] = await Promise.all([
+    const [m, l, c, f, p] = await Promise.all([
       sb.from("missions").select("id,title,rank").ilike("title", like).limit(5),
       sb.from("library_items").select("id,title,category").ilike("title", like).limit(5),
       sb.from("courses").select("id,title").ilike("title", like).limit(5),
-      sb.from("forum_topics").select("id,title").ilike("title", like).limit(5)
+      sb.from("forum_topics").select("id,title").ilike("title", like).limit(5),
+      sb.from("profiles").select("id,name,position").ilike("name", like).limit(5)
     ]);
     const section = (name, rows, fn) => rows && rows.length ? `<div class="navg">${name}</div>` + rows.map(fn).join("") : "";
     const html = section("Missions", m.data, x => `<div class="row" style="cursor:pointer" onclick="go('missions')"><b>${esc(x.title)}</b><span class="rank">${esc(x.rank)}</span></div>`)
       + section("Library", l.data, x => `<div class="row" style="cursor:pointer" onclick="go('library')"><b>${esc(x.title)}</b><span class="muted">${esc(x.category)}</span></div>`)
       + section("Courses", c.data, x => `<div class="row" style="cursor:pointer" onclick="go('courses')"><b>${esc(x.title)}</b></div>`)
       + section("Forum", f.data, x => `<div class="row" style="cursor:pointer" onclick="openTopic=${x.id};go('forum')"><b>${esc(x.title)}</b></div>`);
-    box.innerHTML = html || '<div class="empty">No results.</div>';
+    box.innerHTML = (html + section("Members", p.data, x => `<div class="row" style="cursor:pointer" onclick="go('contacts')"><b>${esc(x.name)}</b><span class="muted">${esc(x.position || "Member")}</span></div>`)) || '<div class="empty">No results.</div>';
   }, 300);
 }
 // Filter cards in place (no page redraw, so typing is not interrupted)
@@ -1272,6 +1373,9 @@ async function requestsView(){
 }
 
 // ---------- Start ----------
+document.addEventListener("click", e => { const r = $("dsr"); if(!r) return; if(!e.target.closest(".gsearch") || e.target.closest("#dsr .row")) setTimeout(() => { r.innerHTML = ""; if(e.target.closest("#dsr .row")) $("gq").value = ""; }, 0); });
+let idleT; const bump = () => { clearTimeout(idleT); if(me) idleT = setTimeout(logout, 30*60000); };
+["click","keydown","mousemove","touchstart"].forEach(ev => addEventListener(ev, bump, { passive: true }));
 applyTheme();
 sb.auth.onAuthStateChange((event, session) => { if(session) startLive(); });
 setMode("login");
