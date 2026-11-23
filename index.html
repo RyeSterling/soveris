@@ -311,22 +311,6 @@ async function clock(){
 // ---------- Dashboard ----------
 
 // ---------- Missions ----------
-function postForm(){
-  return `<div class="card" style="margin-bottom:18px"><div class="sec"><h2>Post a new mission</h2></div>
-  <div class="grid" style="grid-template-columns:2fr 1fr 1fr;gap:12px;align-items:end">
-    <div><label>Title</label><input class="in" id="pTitle"></div>
-    <div><label>Rank</label><select class="in" id="pRank">${RANKS.map(r=>`<option>${r[0]}</option>`).join("")}</select></div>
-    <div><label>Deadline</label><input class="in" id="pDue" type="date"></div>
-  </div>
-  <label>Description</label><textarea class="in" id="pDesc" rows="2"></textarea>
-  <div class="row end" style="border:0;margin-top:12px"><button class="btn sm" onclick="postMission()">Post mission</button></div></div>`;
-}
-async function postMission(){
-  const title = $("pTitle").value.trim(), due = $("pDue").value;
-  if(!title || !due){ alert("Add a title and a deadline."); return; }
-  const ok = await run(sb.from("missions").insert({title, rank: $("pRank").value, due_date: due, description: $("pDesc").value.trim()}));
-  if(ok) render();
-}
 async function deleteMission(id){
   if(!confirm("Delete this mission?")) return;
   if(await run(sb.from("missions").delete().eq("id", id))){ closeModal(); render(); }
@@ -423,34 +407,11 @@ async function setRole(id, role){
 
 // ---------- Missions: exclusive. A taken mission leaves the open list for everyone ----------
 let MSG = [], ABOUT = "";
-const missionCard = m => `
-  <div class="card mission" id="m${m.id}" onclick="showMission(${m.id})">
-    <div class="mt"><span class="rank">${esc(m.rank)}</span><span class="pill">${timeLeft(m.due_date)}</span></div>
-    <h3>${esc(m.title)}</h3>
-    <div class="muted">Deadline ${fmt(m.due_date)}</div>
-    <div class="muted mint" style="margin-top:auto">View details →</div>
-  </div>`;
 const missionRow = m => `
   <div class="row" style="cursor:pointer" onclick="showMission(${m.id})">
     <div style="min-width:0"><b>${esc(m.title)}</b><div class="muted">Due ${fmt(m.due_date)}</div></div>
     <div style="text-align:right"><span class="rank">${esc(m.rank)}</span><div class="muted" style="margin-top:6px">${timeLeft(m.due_date)}</div></div>
   </div>`;
-async function missionsView(){
-  const [ms, pr] = await Promise.all([
-    sb.from("missions").select("*").order("due_date"),
-    sb.from("profiles").select("id,name")
-  ]);
-  MS = ms.data || [];
-  const names = Object.fromEntries((pr.data || []).map(p => [p.id, p.name]));
-  const open = MS.filter(m => !m.taken_by);
-  const taken = MS.filter(m => m.taken_by);
-  return `
-  <div class="top"><div><h1>Missions</h1><p>Choose an open mission. Once someone takes it, it leaves this list.</p></div></div>
-  ${isAdmin ? postForm() : ""}
-  ${open.length ? `<div class="grid g4">${open.map(missionCard).join("")}</div>` : '<div class="card empty">No open missions right now.</div>'}
-  ${isAdmin && taken.length ? `<div class="card gap"><div class="sec"><h2>Taken missions</h2></div>
-    ${taken.map(m => `<div class="row"><div><b>${esc(m.title)}</b><div class="muted">Taken by ${esc(names[m.taken_by] || "Member")}</div></div><span class="rank">${esc(m.rank)}</span></div>`).join("")}</div>` : ""}`;
-}
 function showMission(id){
   const m = MS.find(x => x.id === id); if(!m) return;
   const takeBtn = m.taken_by ? '<span class="pill">Already taken</span>' : `<button class="btn" onclick="takeMission(${id})">Take mission</button>`;
@@ -512,7 +473,7 @@ async function dashboard(){
 
   if(!isAdmin){
     const pct = all.length ? Math.round(mine.length / all.length * 100) : 0;
-    return header + `
+    return header + searchBox() + `
     <div class="grid g4">
       ${stat("⚑","Open missions", openM.length)}
       ${stat("✓","Missions taken", mine.length)}
@@ -542,7 +503,7 @@ async function dashboard(){
     : (profiles.slice(0,5).map(p => `
       <div class="row"><div><b>${esc(p.name)}</b><div class="muted">${esc(p.position || "Member")} · joined ${fmt((p.created_at || "").slice(0,10))}</div></div>
       <span class="pill ${p.role === 'admin' ? 'm' : ''}">${esc(p.role)}</span></div>`).join("") || '<div class="empty">No members yet.</div>');
-  return header + `
+  return header + searchBox() + `
   <div class="grid g4">
     ${stat("👥","Members", profiles.length)}
     ${stat("⚑","Open missions", openM.length)}
@@ -841,22 +802,6 @@ const openLib = i => openRef(LIB[i]);
 const openCourse = i => openRef(COURSES[i]);
 
 // ---------- Library ----------
-async function libraryView(){
-  const { data } = await sb.from("library_items").select("*").order("title");
-  LIB = data || [];
-  const cats = ["All", ...new Set(LIB.map(x => x.category))];
-  const shown = LIB.map((x,i) => ({...x, i})).filter(x => LIB_F === "All" || x.category === LIB_F);
-  return `
-  <div class="top"><div><h1>Library</h1><p>Templates, guides and policies. Click a file to download it.</p></div>
-    ${isAdmin ? '<button class="btn sm" onclick="libForm()">+ Add document</button>' : ''}</div>
-  <div class="chips">${cats.map(c => `<span class="chip ${c === LIB_F ? 'on' : ''}" onclick="LIB_F=this.textContent;render()">${esc(c)}</span>`).join("")}</div>
-  <div class="grid g2">${shown.length ? shown.map(x => `
-    <div class="item"><div class="file">${esc(x.file_type || "LINK")}</div>
-      <div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="muted">${esc(x.category)}</div></div>
-      <button class="btn sm" onclick="openLib(${x.i})">${x.link_url ? 'Open link' : 'Download'}</button>
-      ${isAdmin ? `<button class="btn ghost sm" onclick="delRow('library_items',${x.id})">Remove</button>` : ''}</div>`).join("")
-    : '<div class="card empty">Nothing here yet.</div>'}</div>`;
-}
 function libForm(){
   openModal("Add document", `
     <label style="margin-top:0">Title</label><input class="in" id="lTitle">
@@ -880,38 +825,6 @@ async function saveLibrary(){
 }
 
 // ---------- Courses ----------
-async function coursesView(){
-  const { data } = await sb.from("courses").select("*").order("title");
-  COURSES = data || [];
-  return `
-  <div class="top"><div><h1>Courses</h1><p>Watch the video or download the course material.</p></div>
-    ${isAdmin ? '<button class="btn sm" onclick="courseForm()">+ New course</button>' : ''}</div>
-  <div class="grid g4">${COURSES.length ? COURSES.map((c,i) => `
-    <div class="card course"><div class="thumb">${esc(c.title)}</div><div class="muted">${esc(c.modules || "")}</div>
-      <div class="row" style="border:0;padding:0;gap:8px;flex-wrap:wrap">
-        ${c.content_url || c.content_path
-          ? `<button class="btn sm" onclick="openCourse(${i})">${c.content_url ? 'Watch' : 'Download'}</button>`
-          : '<span class="muted">No content yet</span>'}
-        ${isAdmin ? `<button class="btn ghost sm" onclick="delRow('courses',${c.id})">Remove</button>` : ''}</div></div>`).join("")
-    : '<div class="card empty">No courses yet.</div>'}</div>`;
-}
-function courseForm(){
-  openModal("New course", `
-    <label style="margin-top:0">Course title</label><input class="in" id="cTitle">
-    <label>Modules (e.g. 0 of 6 modules)</label><input class="in" id="cMods">
-    <label>YouTube or web link (optional, add ?t=120 to start at 2 minutes)</label><input class="in" id="cLink" placeholder="https://...">
-    <label>Or upload a file (optional)</label><input class="in" id="cFile" type="file">
-    <div class="row end" style="border:0;margin-top:16px"><button class="btn ghost sm" onclick="closeModal()">Cancel</button><button class="btn sm" onclick="saveCourse()">Save</button></div>`);
-}
-async function saveCourse(){
-  const title = $("cTitle").value.trim(), link = $("cLink").value.trim(), file = $("cFile").files[0];
-  if(!title) return alert("Add a title.");
-  if(link && !okLink(link)) return alert("The link must start with https://");
-  let content_path = null;
-  if(file){ content_path = await uploadFile(file); if(!content_path) return; }
-  const ok = await run(sb.from("courses").insert({title, modules: $("cMods").value.trim(), content_url: link || null, content_path}));
-  if(ok){ closeModal(); render(); }
-}
 
 // ---------- Forum: replies to replies ----------
 async function threadView(id){
@@ -1016,55 +929,8 @@ async function sendMessage(){
 }
 
 // ---------- Contacts (emails hidden until an admin approves) ----------
-async function contactsView(){
-  await sb.from("notifications").update({read: true}).eq("user_id", me.id).eq("kind", "request");
-  const [{ data: ps }, { data: pc }, { data: rq }] = await Promise.all([
-    sb.from("profiles").select("id,name,position,team,photo_url").order("name"),
-    sb.from("private_contacts").select("id,email"),
-    sb.from("contact_requests").select("target_id,status").eq("from_id", me.id)
-  ]);
-  const emails = Object.fromEntries((pc || []).map(x => [x.id, x.email]));
-  const reqs = Object.fromEntries((rq || []).map(x => [x.target_id, x.status]));
-  return `
-  <div class="top"><div><h1>Contacts</h1><p>Email addresses are private. Ask for one and an admin will approve it.</p></div></div>
-  <div class="grid g4">${(ps || []).map(p => {
-    let action;
-    if(p.id === me.id) action = '<span class="muted">This is you</span>';
-    else if(emails[p.id]) action = `<a href="mailto:${esc(emails[p.id])}" style="color:var(--m);font-size:13px;word-break:break-all">${esc(emails[p.id])}</a>`;
-    else if(reqs[p.id] === "pending") action = '<span class="pill">Request sent</span>';
-    else if(reqs[p.id] === "denied") action = '<span class="pill">Request declined</span>';
-    else action = `<button class="btn ghost sm" onclick="requestEmail('${p.id}')">Request email</button>`;
-    return `<div class="card" style="text-align:center">
-      <div style="display:flex;justify-content:center">${av(p, 54)}</div>
-      <b style="display:block;margin-top:12px">${esc(p.name)}</b>
-      <div class="muted">${esc(p.position || "Member")}${p.team ? ' · ' + esc(p.team) : ''}</div>
-      <div style="margin-top:12px">${action}</div></div>`;
-  }).join("")}</div>`;
-}
-async function requestEmail(id){
-  if(await run(sb.from("contact_requests").insert({from_id: me.id, target_id: id}))) render();
-}
 
 // ---------- Requests (admin) ----------
-async function requestsView(){
-  if(!isAdmin) return '<div class="card empty">Admins only.</div>';
-  await sb.from("notifications").update({read: true}).eq("user_id", me.id).eq("kind", "request");
-  const [{ data: rq }, { data: pr }] = await Promise.all([
-    sb.from("contact_requests").select("*").order("created_at", {ascending:false}),
-    sb.from("profiles").select("id,name")
-  ]);
-  const names = Object.fromEntries((pr || []).map(p => [p.id, p.name]));
-  const list = rq || [];
-  return `
-  <div class="top"><div><h1>Requests</h1><p>Members asking to see an email address.</p></div></div>
-  <div class="card">${list.length ? list.map(r => `
-    <div class="row"><div><b>${esc(names[r.from_id] || "Member")}</b> asked for the email of <b>${esc(names[r.target_id] || "Member")}</b>
-      <div class="muted">${fmt(r.created_at.slice(0,10))}</div></div>
-      ${r.status === "pending"
-        ? `<div style="display:flex;gap:8px"><button class="btn sm" onclick="decide(${r.id},'approved')">Approve</button><button class="btn ghost sm" onclick="decide(${r.id},'denied')">Decline</button></div>`
-        : `<span class="pill ${r.status === 'approved' ? 'm' : ''}">${esc(r.status)}</span>`}</div>`).join("")
-    : '<div class="empty">No requests yet.</div>'}</div>`;
-}
 async function decide(id, status){
   if(await run(sb.from("contact_requests").update({status}).eq("id", id))) render();
 }
@@ -1177,6 +1043,232 @@ function buildNav(){
       const [v, i, l] = all[k];
       return `<button class="nav" data-v="${v}" onclick="go('${v}')"><span class="ic">${i}</span>${l}<span class="bdg hide"></span></button>`;
     }).join("")).join("");
+}
+
+// ---------- Search ----------
+const searchBox = () => `
+  <div class="card" style="margin-bottom:18px">
+    <input class="in" id="gq" placeholder="Search missions, library, courses and forum..." oninput="doSearch(this.value)">
+    <div id="dsr" style="margin-top:12px"></div>
+  </div>`;
+let searchT = null;
+function doSearch(q){
+  clearTimeout(searchT);
+  searchT = setTimeout(async () => {
+    q = q.trim();
+    const box = $("dsr"); if(!box) return;
+    if(q.length < 2){ box.innerHTML = ""; return; }
+    const like = `%${q}%`;
+    const [m, l, c, f] = await Promise.all([
+      sb.from("missions").select("id,title,rank").ilike("title", like).limit(5),
+      sb.from("library_items").select("id,title,category").ilike("title", like).limit(5),
+      sb.from("courses").select("id,title").ilike("title", like).limit(5),
+      sb.from("forum_topics").select("id,title").ilike("title", like).limit(5)
+    ]);
+    const section = (name, rows, fn) => rows && rows.length ? `<div class="navg">${name}</div>` + rows.map(fn).join("") : "";
+    const html = section("Missions", m.data, x => `<div class="row" style="cursor:pointer" onclick="go('missions')"><b>${esc(x.title)}</b><span class="rank">${esc(x.rank)}</span></div>`)
+      + section("Library", l.data, x => `<div class="row" style="cursor:pointer" onclick="go('library')"><b>${esc(x.title)}</b><span class="muted">${esc(x.category)}</span></div>`)
+      + section("Courses", c.data, x => `<div class="row" style="cursor:pointer" onclick="go('courses')"><b>${esc(x.title)}</b></div>`)
+      + section("Forum", f.data, x => `<div class="row" style="cursor:pointer" onclick="openTopic=${x.id};go('forum')"><b>${esc(x.title)}</b></div>`);
+    box.innerHTML = html || '<div class="empty">No results.</div>';
+  }, 300);
+}
+// Filter cards in place (no page redraw, so typing is not interrupted)
+function filterCards(q, cls){
+  q = q.trim().toLowerCase();
+  document.querySelectorAll("." + cls).forEach(el => { el.style.display = (el.dataset.t || "").includes(q) ? "" : "none"; });
+}
+
+// ---------- Missions with categories ----------
+let MIS_F = "All";
+const missionCard = m => `
+  <div class="card mission fitem" data-t="${esc((m.title + " " + (m.category || "")).toLowerCase())}" id="m${m.id}" onclick="showMission(${m.id})">
+    <div class="mt"><span class="rank">${esc(m.rank)}</span><span class="pill">${timeLeft(m.due_date)}</span></div>
+    <h3>${esc(m.title)}</h3>
+    <div class="muted">${esc(m.category || "General")} · Deadline ${fmt(m.due_date)}</div>
+    <div class="muted mint" style="margin-top:auto">View details →</div>
+  </div>`;
+function postForm(){
+  return `<div class="card" style="margin-bottom:18px"><div class="sec"><h2>Post a new mission</h2></div>
+  <div class="grid" style="grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;align-items:end">
+    <div><label>Title</label><input class="in" id="pTitle"></div>
+    <div><label>Category</label><input class="in" id="pCat" value="General"></div>
+    <div><label>Rank</label><select class="in" id="pRank">${RANKS.map(r => `<option>${r[0]}</option>`).join("")}</select></div>
+    <div><label>Deadline</label><input class="in" id="pDue" type="date"></div>
+  </div>
+  <label>Description</label><textarea class="in" id="pDesc" rows="2"></textarea>
+  <div class="row end" style="border:0;margin-top:12px"><button class="btn sm" onclick="postMission()">Post mission</button></div></div>`;
+}
+async function postMission(){
+  const title = $("pTitle").value.trim(), due = $("pDue").value;
+  if(!title || !due){ alert("Add a title and a deadline."); return; }
+  const ok = await run(sb.from("missions").insert({
+    title, rank: $("pRank").value, due_date: due, description: $("pDesc").value.trim(),
+    category: $("pCat").value.trim() || "General"
+  }));
+  if(ok) render();
+}
+async function missionsView(){
+  const [ms, pr] = await Promise.all([
+    sb.from("missions").select("*").order("due_date"),
+    sb.from("profiles").select("id,name")
+  ]);
+  MS = ms.data || [];
+  const names = Object.fromEntries((pr.data || []).map(p => [p.id, p.name]));
+  const cats = ["All", ...new Set(MS.map(m => m.category || "General"))];
+  const open = MS.filter(m => !m.taken_by && (MIS_F === "All" || (m.category || "General") === MIS_F));
+  const taken = MS.filter(m => m.taken_by);
+  return `
+  <div class="top"><div><h1>Missions</h1><p>Choose an open mission. Once someone takes it, it leaves this list.</p></div>
+    <input class="in" style="max-width:240px" placeholder="Search missions..." oninput="filterCards(this.value,'fitem')"></div>
+  <div class="chips">${cats.map(c => `<span class="chip ${c === MIS_F ? 'on' : ''}" onclick="MIS_F=this.textContent;render()">${esc(c)}</span>`).join("")}</div>
+  ${isAdmin ? postForm() : ""}
+  ${open.length ? `<div class="grid g4">${open.map(missionCard).join("")}</div>` : '<div class="card empty">No open missions in this category.</div>'}
+  ${isAdmin && taken.length ? `<div class="card gap"><div class="sec"><h2>Taken missions</h2></div>
+    ${taken.map(m => `<div class="row"><div><b>${esc(m.title)}</b><div class="muted">Taken by ${esc(names[m.taken_by] || "Member")}</div></div><span class="rank">${esc(m.rank)}</span></div>`).join("")}</div>` : ""}`;
+}
+
+// ---------- Courses with categories ----------
+let COU_F = "All";
+async function coursesView(){
+  const { data } = await sb.from("courses").select("*").order("title");
+  COURSES = data || [];
+  const cats = ["All", ...new Set(COURSES.map(c => c.category || "General"))];
+  const shown = COURSES.map((c,i) => ({...c, i})).filter(c => COU_F === "All" || (c.category || "General") === COU_F);
+  return `
+  <div class="top"><div><h1>Courses</h1><p>Watch the video or download the course material.</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input class="in" style="max-width:240px" placeholder="Search courses..." oninput="filterCards(this.value,'fitem')">
+      ${isAdmin ? '<button class="btn sm" onclick="courseForm()">+ New course</button>' : ''}</div></div>
+  <div class="chips">${cats.map(c => `<span class="chip ${c === COU_F ? 'on' : ''}" onclick="COU_F=this.textContent;render()">${esc(c)}</span>`).join("")}</div>
+  <div class="grid g4">${shown.length ? shown.map(c => `
+    <div class="card course fitem" data-t="${esc((c.title + " " + (c.category || "")).toLowerCase())}">
+      <div class="thumb">${esc(c.title)}</div>
+      <div class="muted">${esc(c.category || "General")} · ${esc(c.modules || "")}</div>
+      <div class="row" style="border:0;padding:0;gap:8px;flex-wrap:wrap">
+        ${c.content_url || c.content_path
+          ? `<button class="btn sm" onclick="openCourse(${c.i})">${c.content_url ? 'Watch' : 'Download'}</button>`
+          : '<span class="muted">No content yet</span>'}
+        ${isAdmin ? `<button class="btn ghost sm" onclick="delRow('courses',${c.id})">Remove</button>` : ''}</div></div>`).join("")
+    : '<div class="card empty">No courses in this category.</div>'}</div>`;
+}
+function courseForm(){
+  openModal("New course", `
+    <label style="margin-top:0">Course title</label><input class="in" id="cTitle">
+    <label>Category</label><input class="in" id="cCat" value="General">
+    <label>Modules (e.g. 0 of 6 modules)</label><input class="in" id="cMods">
+    <label>YouTube or web link (optional, add ?t=120 to start at 2 minutes)</label><input class="in" id="cLink" placeholder="https://...">
+    <label>Or upload a file (optional)</label><input class="in" id="cFile" type="file">
+    <div class="row end" style="border:0;margin-top:16px"><button class="btn ghost sm" onclick="closeModal()">Cancel</button><button class="btn sm" onclick="saveCourse()">Save</button></div>`);
+}
+async function saveCourse(){
+  const title = $("cTitle").value.trim(), link = $("cLink").value.trim(), file = $("cFile").files[0];
+  if(!title) return alert("Add a title.");
+  if(link && !okLink(link)) return alert("The link must start with https://");
+  let content_path = null;
+  if(file){ content_path = await uploadFile(file); if(!content_path) return; }
+  const ok = await run(sb.from("courses").insert({
+    title, category: $("cCat").value.trim() || "General", modules: $("cMods").value.trim(),
+    content_url: link || null, content_path
+  }));
+  if(ok){ closeModal(); render(); }
+}
+
+// ---------- Library with search ----------
+async function libraryView(){
+  const { data } = await sb.from("library_items").select("*").order("title");
+  LIB = data || [];
+  const cats = ["All", ...new Set(LIB.map(x => x.category))];
+  const shown = LIB.map((x,i) => ({...x, i})).filter(x => LIB_F === "All" || x.category === LIB_F);
+  return `
+  <div class="top"><div><h1>Library</h1><p>Templates, guides and policies. Click a file to download it.</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input class="in" style="max-width:240px" placeholder="Search library..." oninput="filterCards(this.value,'fitem')">
+      ${isAdmin ? '<button class="btn sm" onclick="libForm()">+ Add document</button>' : ''}</div></div>
+  <div class="chips">${cats.map(c => `<span class="chip ${c === LIB_F ? 'on' : ''}" onclick="LIB_F=this.textContent;render()">${esc(c)}</span>`).join("")}</div>
+  <div class="grid g2">${shown.length ? shown.map(x => `
+    <div class="item fitem" data-t="${esc((x.title + " " + x.category).toLowerCase())}"><div class="file">${esc(x.file_type || "LINK")}</div>
+      <div style="flex:1;min-width:0"><b>${esc(x.title)}</b><div class="muted">${esc(x.category)}</div></div>
+      <button class="btn sm" onclick="openLib(${x.i})">${x.link_url ? 'Open link' : 'Download'}</button>
+      ${isAdmin ? `<button class="btn ghost sm" onclick="delRow('library_items',${x.id})">Remove</button>` : ''}</div>`).join("")
+    : '<div class="card empty">Nothing in this category.</div>'}</div>`;
+}
+
+// ---------- Contacts: reason, 8-hour limit, 3-minute approval ----------
+let CONTACT_T = null;
+async function contactsView(){
+  await sb.from("notifications").update({read: true}).eq("user_id", me.id).eq("kind", "request");
+  const [{ data: ps }, { data: pc }, { data: rq }] = await Promise.all([
+    sb.from("profiles").select("id,name,position,team,photo_url").order("name"),
+    sb.from("private_contacts").select("id,email"),
+    sb.from("contact_requests").select("target_id,status,created_at,approved_until").eq("from_id", me.id).order("created_at", {ascending:false})
+  ]);
+  const emails = Object.fromEntries((pc || []).map(x => [x.id, x.email]));
+  const latest = {};
+  (rq || []).forEach(r => { if(!latest[r.target_id]) latest[r.target_id] = r; });
+  const last = (rq || [])[0];
+  const wait = last ? new Date(last.created_at).getTime() + 8*36e5 - Date.now() : 0;
+  const timers = [];
+  Object.values(latest).forEach(r => {
+    if(r.status === "approved" && r.approved_until && new Date(r.approved_until) > new Date()) timers.push(new Date(r.approved_until) - Date.now());
+  });
+  if(wait > 0) timers.push(wait);
+  clearTimeout(CONTACT_T);
+  if(timers.length) CONTACT_T = setTimeout(() => { if(cur === "contacts") render(); }, Math.min(...timers) + 1000);
+  const waitTxt = wait > 36e5 ? `${Math.ceil(wait/36e5)} h` : `${Math.ceil(wait/6e4)} min`;
+  return `
+  <div class="top"><div><h1>Contacts</h1><p>Emails are private. Ask with a reason and an admin will decide. An approved email stays visible for 3 minutes.</p></div></div>
+  <div class="grid g4">${(ps || []).map(p => {
+    const r = latest[p.id];
+    let action;
+    if(p.id === me.id) action = '<span class="muted">This is you</span>';
+    else if(emails[p.id]) action = `<a href="mailto:${esc(emails[p.id])}" style="color:var(--m);font-size:13px;word-break:break-all">${esc(emails[p.id])}</a>
+        ${r && r.approved_until ? `<div class="muted" style="margin-top:6px;font-size:12px">Hides at ${time(r.approved_until)}</div>` : ''}`;
+    else if(r && r.status === "pending") action = '<span class="pill">Waiting for admin</span>';
+    else if(wait > 0) action = `<span class="pill">Next request in ${waitTxt}</span>`;
+    else action = `<button class="btn ghost sm" onclick="requestEmail('${p.id}')">Request email</button>`;
+    return `<div class="card" style="text-align:center">
+      <div style="display:flex;justify-content:center">${av(p, 54)}</div>
+      <b style="display:block;margin-top:12px">${esc(p.name)}</b>
+      <div class="muted">${esc(p.position || "Member")}${p.team ? ' · ' + esc(p.team) : ''}</div>
+      <div style="margin-top:12px">${action}</div></div>`;
+  }).join("")}</div>`;
+}
+async function requestEmail(id){
+  const { data } = await sb.from("profiles").select("name").eq("id", id).single();
+  openModal(`Request email for ${data?.name || "this member"}`, `
+    <label style="margin-top:0">Why do you want to see this email?</label>
+    <textarea class="in" id="rReason" rows="3" placeholder="For example: we are working on the same project together."></textarea>
+    <p class="muted" style="margin-top:10px">An admin reviews your reason. If approved, the email stays visible for 3 minutes. You can send one request every 8 hours.</p>
+    <div class="row end" style="border:0;margin-top:14px"><button class="btn ghost sm" onclick="closeModal()">Cancel</button><button class="btn sm" onclick="sendRequest('${id}')">Send request</button></div>`);
+}
+async function sendRequest(id){
+  const reason = $("rReason").value.trim();
+  if(reason.length < 10) return alert("Please write a reason (at least 10 characters).");
+  if(await run(sb.from("contact_requests").insert({from_id: me.id, target_id: id, reason}))){ closeModal(); render(); }
+}
+
+// ---------- Requests (admin) ----------
+async function requestsView(){
+  if(!isAdmin) return '<div class="card empty">Admins only.</div>';
+  await sb.from("notifications").update({read: true}).eq("user_id", me.id).eq("kind", "request");
+  const [{ data: rq }, { data: pr }] = await Promise.all([
+    sb.from("contact_requests").select("*").order("created_at", {ascending:false}),
+    sb.from("profiles").select("id,name")
+  ]);
+  const names = Object.fromEntries((pr || []).map(p => [p.id, p.name]));
+  const list = rq || [];
+  return `
+  <div class="top"><div><h1>Requests</h1><p>Approve a request to show that email for 3 minutes.</p></div></div>
+  <div class="card">${list.length ? list.map(r => `
+    <div class="row" style="align-items:flex-start">
+      <div style="min-width:0"><b>${esc(names[r.from_id] || "Member")}</b> asked for the email of <b>${esc(names[r.target_id] || "Member")}</b>
+        <div class="desc" style="margin-top:6px">“${esc(r.reason || "No reason given")}”</div>
+        <div class="muted" style="margin-top:4px">${fmt(r.created_at.slice(0,10))} ${time(r.created_at)}</div></div>
+      ${r.status === "pending"
+        ? `<div style="display:flex;gap:8px;flex-shrink:0"><button class="btn sm" onclick="decide(${r.id},'approved')">Approve</button><button class="btn ghost sm" onclick="decide(${r.id},'denied')">Decline</button></div>`
+        : `<span class="pill ${r.status === 'approved' ? 'm' : ''}">${r.status === 'approved' && r.approved_until ? 'Approved until ' + time(r.approved_until) : esc(r.status)}</span>`}
+    </div>`).join("") : '<div class="empty">No requests yet.</div>'}</div>`;
 }
 
 // ---------- Start ----------
