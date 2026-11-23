@@ -776,7 +776,7 @@ async function composeForm(){
 
 // ---------- Leaderboards ----------
 async function leaderboardView(){
-  const { data, error } = await sb.from("leaderboard").select("*");
+  const { data, error } = await sb.rpc("get_leaderboard");
   if(error) return `<div class="top"><div><h1>Leaderboards</h1></div></div><div class="card empty">${esc(error.message)}</div>`;
   const rows = (data || []).map(r => ({...r, score: Number(r.hours) + Number(r.missions_done) * 2}))
     .sort((a,b) => b.score - a.score);
