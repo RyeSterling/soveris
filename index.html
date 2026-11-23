@@ -277,16 +277,21 @@ const NAV = [
   ["about","ⓘ","About Us"],["messages","✉","Messages"],["leaderboard","🏆","Leaderboards"],["contacts","☎","Contacts"],
   ["profile","◐","My Profile"],["settings","⚙","Settings"]
 ];
+let navSeq = 0, LAST_VIEW = null, LAST_HTML = "";
 async function go(v){
   cur = v;
+  const seq = ++navSeq;
+  const changed = v !== LAST_VIEW;
   document.querySelectorAll(".nav").forEach(b => b.classList.toggle("on", b.dataset.v === v));
-  $("main").innerHTML = '<div class="empty">Loading…</div>';
+  if(!$("main").innerHTML.trim()){ $("main").innerHTML = '<div class="empty">Loading…</div>'; LAST_HTML = ""; }
   const V = {dashboard, missions:missionsView, library:libraryView, courses:coursesView, calendar:calendarView,
     forum:forumView, intro:introView, ranks:ranksView, profile:profileView, members:membersView,
     about:aboutView, messages:messagesView, leaderboard:leaderboardView, contacts:contactsView,
     reports:reportsView, settings:settingsView, requests:requestsView};
-  $("main").innerHTML = await V[v]();
-  window.scrollTo(0,0);
+  const html = await V[v]();
+  if(seq !== navSeq) return;
+  if(html !== LAST_HTML){ $("main").innerHTML = html; LAST_HTML = html; }
+  if(changed){ window.scrollTo(0,0); LAST_VIEW = v; }
   updateBadges();
 }
 function render(){ go(cur); }
